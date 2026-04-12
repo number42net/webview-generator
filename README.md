@@ -69,6 +69,17 @@ Add the `--build` flag to automatically build the APK after project generation:
   --build
 ```
 
+### Build and Install via ADB
+
+Add the `--install` flag to build the APK and immediately install it on a connected Android device via ADB. This implicitly enables `--build`, uninstalls any existing version of the app, installs the new APK, and launches it automatically:
+```bash
+./build.sh \
+  --url https://example.com \
+  --name "My App" \
+  --icon icon.png \
+  --install
+```
+
 ### Custom Package Name
 
 By default, package names are auto-generated from the app name. You can specify a custom package:
@@ -104,6 +115,7 @@ If you update the Dockerfile or want to rebuild the image:
 | `--icon` | No | Path to icon file or Play Store URL |
 | `--output` | No | Output directory (default: `output`) |
 | `--build` | No | Build APK after generation |
+| `--install` | No | Build APK, install via ADB, and launch on connected device (implies `--build`) |
 | `--package` | No | Custom package name (default: auto-generated) |
 
 ## Manual Build
@@ -129,7 +141,7 @@ output/Your_App_Name/app/build/outputs/apk/debug/app-debug.apk
 If you need to rebuild the Docker image (e.g., to update dependencies):
 
 ```bash
-docker build -t webview-generator-builder -f Dockerfile .
+docker build -t webview-generator-builder -f src/Dockerfile .
 ```
 
 ## Installing the APK
@@ -159,57 +171,7 @@ The generated WebView apps include:
 - **Mixed Content**: Support for HTTP/HTTPS mixed content
 - **Responsive**: Adapts to device orientation and screen size
 - **Persistent Storage**: Cookies, localStorage, sessionStorage, and IndexedDB all persist
-
-## Data Persistence
-
-All web data is stored in the app's private directory and persists across:
-
-- ✅ **App upgrades** - Data remains when you update the app
-- ✅ **Device reboots** - Data survives device restarts
-- ✅ **App restarts** - Sessions are maintained
-
-### What's stored persistently:
-- Cookies (first-party and third-party)
-- localStorage
-- sessionStorage
-- IndexedDB
-- WebSQL databases
-- Cache files
-
-### Independence from system browser:
-- ⚠️ The app has its own separate storage - clearing Chrome/Safari cookies **does NOT** affect this app
 - Each WebView app has completely isolated storage from the system browser and other apps
-
-### When is data cleared:
-Data is only removed when:
-- User manually clears app data (Settings → Apps → Your App → Clear Data)
-- App is uninstalled
-- User clears cache (Settings → Apps → Your App → Clear Cache) - *cache only, not cookies/storage*
-
-## Project Structure
-
-```
-output/
-└── Your_App_Name/
-    ├── app/
-    │   ├── src/
-    │   │   └── main/
-    │   │       ├── AndroidManifest.xml
-    │   │       ├── java/
-    │   │       │   └── com/webview/yourapp/
-    │   │       │       └── MainActivity.kt
-    │   │       └── res/
-    │   │           ├── mipmap-*/
-    │   │           │   └── ic_launcher.png
-    │   │           └── values/
-    │   └── build.gradle
-    ├── gradle/
-    │   └── wrapper/
-    ├── build.gradle
-    ├── settings.gradle
-    ├── gradle.properties
-    └── gradlew
-```
 
 ## Customization
 
@@ -231,7 +193,7 @@ After generation, you can customize the app by editing:
 ### Build Fails
 
 1. Check Docker logs for errors
-2. Try rebuilding the Docker image: `docker build -t webview-generator-builder -f Dockerfile .`
+2. Try rebuilding the Docker image: `docker build -t webview-generator-builder -f src/Dockerfile .`
 3. Check internet connection (Gradle downloads dependencies)
 4. Clear Gradle cache: `rm -rf .gradle_cache`
 
@@ -246,14 +208,6 @@ After generation, you can customize the app by editing:
 - Enable "Install from Unknown Sources"
 - Uninstall previous version if exists
 - Check device storage space
-
-## License
-
-This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## Security Note
 
@@ -292,7 +246,3 @@ The generated apps use WebView with JavaScript enabled and accept all SSL certif
   --name "Dev App" \
   --build
 ```
-
-## Minimum Android Version
-
-Generated apps support Android 7.0 (API 24) and above, which covers 95%+ of Android devices as of 2026.

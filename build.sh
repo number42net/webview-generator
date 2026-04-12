@@ -15,11 +15,11 @@ fi
 # Build Docker image if it doesn't exist or if --rebuild flag is passed
 if [[ "$1" == "--rebuild" ]]; then
     echo "Rebuilding Docker image..."
-    docker build --platform linux/amd64 -t "$IMAGE_NAME" -f "$SCRIPT_DIR/Dockerfile" "$SCRIPT_DIR"
+    docker build --platform linux/amd64 -t "$IMAGE_NAME" -f "$SCRIPT_DIR/src/Dockerfile" "$SCRIPT_DIR"
     shift  # Remove --rebuild from arguments
 elif ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "Docker image not found. Building..."
-    docker build --platform linux/amd64 -t "$IMAGE_NAME" -f "$SCRIPT_DIR/Dockerfile" "$SCRIPT_DIR"
+    docker build --platform linux/amd64 -t "$IMAGE_NAME" -f "$SCRIPT_DIR/src/Dockerfile" "$SCRIPT_DIR"
 fi
 
 # Run the Python script inside Docker
@@ -27,6 +27,8 @@ fi
 INSTALL_FLAG=""
 FILTERED_ARGS=()
 APP_NAME=""
+ICON_TMPFILE=""
+NEXT_IS_ICON=false
 for arg in "$@"; do
     if [[ "$arg" == "--install" ]]; then
         INSTALL_FLAG="true"
@@ -37,6 +39,21 @@ for arg in "$@"; do
         APP_NAME="$arg"
         NEXT_IS_NAME=false
         FILTERED_ARGS+=("$arg")
+    elif [[ "$arg" == "--icon" ]]; then
+        NEXT_IS_ICON=true
+        FILTERED_ARGS+=("$arg")
+    elif [[ "$NEXT_IS_ICON" == "true" ]]; then
+        NEXT_IS_ICON=false
+        # Expand ~ and copy local icon files into the workspace so Docker can access them
+        ICON_PATH="${arg/#\~/$HOME}"
+        if [[ ! "$ICON_PATH" == http* ]] && [[ -f "$ICON_PATH" ]]; then
+            ICON_EXT="${ICON_PATH##*.}"
+            ICON_TMPFILE="$SCRIPT_DIR/.icon_tmp.$ICON_EXT"
+            cp "$ICON_PATH" "$ICON_TMPFILE"
+            FILTERED_ARGS+=("/workspace/.icon_tmp.$ICON_EXT")
+        else
+            FILTERED_ARGS+=("$arg")
+        fi
     else
         FILTERED_ARGS+=("$arg")
     fi
@@ -57,7 +74,12 @@ docker run --rm \
     -e ANDROID_HOME=/opt/android-sdk \
     -e ANDROID_SDK_ROOT=/opt/android-sdk \
     "$IMAGE_NAME" \
-    python3 -u generate_app.py "${FILTERED_ARGS[@]}"
+    python3 -u src/generate_app.py "${FILTERED_ARGS[@]}"
+
+# Clean up temporary icon file if one was created
+if [[ -n "$ICON_TMPFILE" && -f "$ICON_TMPFILE" ]]; then
+    rm -f "$ICON_TMPFILE"
+fi
 
 # If install flag was set, install on host after build
 if [[ "$INSTALL_FLAG" == "true" && -n "$APP_NAME" ]]; then
