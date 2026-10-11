@@ -29,13 +29,14 @@ RUN yes | sdkmanager --licenses || true
 # Pre-install common SDK components to speed up builds
 RUN sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0" || true
 
-# Install Python dependencies from pyproject.toml
-# A stub module is created so pip can resolve the package; the real source is volume-mounted.
-COPY pyproject.toml /tmp/build/pyproject.toml
-RUN pip3 install --no-cache-dir 'setuptools>=68' && \
-    touch /tmp/build/generate_app.py && \
-    pip3 install --no-cache-dir --no-build-isolation /tmp/build && \
-    rm -rf /tmp/build
+# Install the runtime dependencies listed in pyproject.toml. The package itself is not
+# installed: the source is volume-mounted, and jammy ships Python 3.10 while pyproject
+# declares requires-python >= 3.12 (the code runs fine on 3.10).
+RUN pip3 install --no-cache-dir \
+    'requests>=2.31.0' \
+    'Pillow>=10.0.0' \
+    'beautifulsoup4>=4.12.0' \
+    'lxml>=4.9.0'
 
 WORKDIR /workspace
 
